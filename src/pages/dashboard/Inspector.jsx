@@ -16,14 +16,16 @@ const InspectorDashboard = () => {
     setError("");
     setResult(null);
 
+    const user = JSON.parse(localStorage.getItem("user"));
+
     try {
       const res = await fetch(
-        `http://localhost:5000/water/${serial}/approve`,
+        `http://localhost:3000/water/${serial}/approve`,
         {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${user?.token}`,
           },
         }
       );
@@ -49,8 +51,8 @@ const InspectorDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-xl mx-auto bg-white p-6 rounded shadow">
+    <div className="p-4">
+      <div className="max-w-xl bg-white p-6 rounded shadow">
         <h2 className="text-2xl font-bold mb-4">
           Inspector Approval Dashboard
         </h2>
