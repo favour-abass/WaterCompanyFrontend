@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { useContext } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
@@ -10,7 +9,7 @@ const Navbar = () => {
       <Link to="/" className="font-bold">WaterChain</Link>
 
       <div className="space-x-4">
-        {!isAuthenticated && (
+        {!isAuthenticated ? (
           <>
             <Link to="/verify">Verify</Link>
             <Link to="/report">Report</Link>
@@ -18,9 +17,7 @@ const Navbar = () => {
               Login
             </Link>
           </>
-        )}
-
-        {isAuthenticated && (
+        ) : (
           <>
             <Link to="/dashboard">Dashboard</Link>
             <button onClick={logout} className="bg-red-600 px-3 py-1 rounded">
