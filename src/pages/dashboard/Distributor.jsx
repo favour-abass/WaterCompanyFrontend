@@ -1,37 +1,66 @@
 import { useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 
 const Distributor = () => {
-  const [batchNumber, setBatchNumber] = useState("");
+  const { user } = useAuth();
+  const [serial, setSerial] = useState("");
   const [status, setStatus] = useState("");
 
-  const markDistributed = async () => {
-    if (!batchNumber) return setStatus("Enter a batch number!");
+  const updateStatus = async (action) => {
+    if (!serial) return setStatus("Enter a serial code!");
 
-    // Mock backend/blockchain call
-    console.log("Marking batch distributed:", batchNumber);
+    try {
+      const res = await fetch(
+        `http://localhost:5000/water/${serial}/${action}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+        }
+      );
 
-    setStatus(`Batch ${batchNumber} marked as distributed successfully!`);
-    setBatchNumber("");
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to update status");
+      }
+
+      const data = await res.json();
+      setStatus(data.message);
+      setSerial("");
+    } catch (err) {
+      setStatus(err.message);
+    }
   };
 
   return (
     <div className="p-6">
-      <h2 className="text-xl font-bold mb-4">Distribute Water</h2>
+      <h2 className="text-xl font-bold mb-4">Distributor Dashboard</h2>
 
       <input
         type="text"
-        placeholder="Batch Number"
-        value={batchNumber}
-        onChange={(e) => setBatchNumber(e.target.value)}
+        placeholder="Serial Code"
+        value={serial}
+        onChange={(e) => setSerial(e.target.value)}
         className="border px-3 py-1 mb-2 mr-2"
       />
 
-      <button
-        onClick={markDistributed}
-        className="bg-yellow-700 text-white px-4 py-1 rounded"
-      >
-        Mark Distributed
-      </button>
+      <div className="space-x-2">
+        <button
+          onClick={() => updateStatus("distribute")}
+          className="bg-yellow-700 text-white px-4 py-1 rounded"
+        >
+          Mark Distributed
+        </button>
+
+        <button
+          onClick={() => updateStatus("sell")}
+          className="bg-green-700 text-white px-4 py-1 rounded"
+        >
+          Mark Sold
+        </button>
+      </div>
 
       {status && <p className="mt-4 text-green-600">{status}</p>}
     </div>

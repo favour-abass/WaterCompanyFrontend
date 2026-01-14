@@ -1,51 +1,41 @@
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { useAuth } from "../../context/AuthContext";
 
 const ProducerDashboard = () => {
+  const { user } = useAuth();
   const [quantity, setQuantity] = useState("");
   const [waterType, setWaterType] = useState("BAG");
   const [message, setMessage] = useState("");
 
-  const generateBatchNumber = () => {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0");
-    return `BATCH-${date}-${random}`;
-  };
-
   const addBatch = async () => {
-    const qty = Number(quantity);
-    if (!qty || qty <= 0) {
-      setMessage("Quantity must be a positive number!");
-      return;
-    }
-    if (!quantity) {
-      setMessage("Please enter quantity!");
-      return;
-    }
+  const qty = Number(quantity);
+  if (!qty || qty <= 0) {
+    setMessage("Quantity must be positive!");
+    return;
+  }
 
-    const batchNumber = generateBatchNumber();
-    const serialNumbers = Array.from(
-      { length: Number(quantity) },
-      () => `WAT-${uuidv4()}`
-    );
-
-    // Mock backend/blockchain call
-    console.log({
-      batchNumber,
-      quantity,
-      waterType,
-      serialNumbers,
+  try {
+    const res = await fetch("http://localhost:5000/water", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${user.token}`,
+      },
+      body: JSON.stringify({ waterType, quantity: qty }),
     });
 
-    setMessage(
-      `Batch ${batchNumber} (${waterType.toLowerCase()}) added with ${quantity} units!`
-    );
+    if (!res.ok) throw new Error("Failed to create batch");
 
+    const data = await res.json();
+    setMessage(`Batch created successfully! Serial: ${data.serialCode}`);
     setQuantity("");
     setWaterType("BAG");
-  };
+  } catch (err) {
+    setMessage(err.message);
+  }
+};
+
 
   return (
     <div className="p-6">
