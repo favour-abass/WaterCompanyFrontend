@@ -6,6 +6,7 @@ import VerifyWaterPage from "./pages/public/VerifyWaterPage";
 import ReportWaterPage from "./pages/public/ReportWaterPage";
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/dashboard/Dashboard";
+import VerifyWater from "./pages/VerifyWater";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/verify" element={<VerifyWaterPage />} />
+        <Route path="/verify/water" element={<VerifyWater />} />
         <Route path="/report" element={<ReportWaterPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
