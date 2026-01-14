@@ -28,7 +28,7 @@ const Dashboard = () => {
       {user.role === "ADMIN" && <Producer />}
       {user.role === "ADMIN" && <Inspector />}
       {user.role === "ADMIN" && <Distributor />}
-      {user.role === "ADMIN" && <Admin />}
+      {/* {user.role === "ADMIN" && <Admin />} */}
     </div>
   );
 };

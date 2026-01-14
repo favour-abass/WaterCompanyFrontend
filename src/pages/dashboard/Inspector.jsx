@@ -13,7 +13,7 @@ const InspectorDashboard = () => {
 
   return (
     <div className="p-6">
-      <h2 className="text-xl font-bold mb-4">Verify Water Quality</h2>
+      <h2 className="text-xl font-bold mb-4">Approve Water Quality</h2>
       <input
         type="text"
         placeholder="Batch Number"
