@@ -5,14 +5,35 @@ const VerifyWaterPage = () => {
   const [result, setResult] = useState(null);
 
   const verify = async () => {
-    // Replace with real backend call
-    setResult({
-      status: "APPROVED",
-      inspector: "Inspector A",
-      hash: "0xabc123...",
-      date: "2026-01-10"
-    });
+    if (!batchId) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:3000/water/verify/${batchId}`
+      );
+
+      if (!res.ok) {
+        throw new Error("Water pack not found");
+      }
+
+      const data = await res.json();
+
+      setResult({
+        status: data.status,
+        inspector: data.inspector || "N/A",
+        hash: data.blockHash || "Not recorded",
+        date: new Date(data.created_at).toLocaleString(),
+      });
+    } catch (err) {
+      setResult({
+        status: "INVALID",
+        inspector: "-",
+        hash: "-",
+        date: err.message,
+      });
+    }
   };
+
 
   return (
     <div className="max-w-xl mx-auto p-6">
