@@ -1,194 +1,243 @@
 import { useState } from "react";
-import {
-  FiCheckCircle,
-  FiAlertCircle,
-  FiShield,
-  FiHash,
-  FiClock,
-  FiSearch,
-} from "react-icons/fi";
+import { useAuth } from "../../context/AuthContext";
 
 const InspectorDashboard = () => {
-  const [serial, setSerial] = useState("");
+  const { user } = useAuth();
+  const [serialCode, setSerialCode] = useState("");
+  const [message, setMessage] = useState("");
+  const [currentStatus, setCurrentStatus] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
 
-  const approveWater = async () => {
-    if (!serial.trim()) {
-      setError("Enter a valid water serial number");
+  const checkStatus = async () => {
+    if (!serialCode.trim()) {
+      setMessage("❌ Please enter a serial code");
       return;
     }
 
     setLoading(true);
-    setError("");
-    setResult(null);
-
-    const user = JSON.parse(localStorage.getItem("user"));
-
     try {
-      const res = await fetch(`http://localhost:3000/water/${serial}/approve`, {
+      const res = await fetch(`http://localhost:3000/water/verify/${serialCode}`);
+      if (!res.ok) throw new Error("Water pack not found");
+      
+      const data = await res.json();
+      setCurrentStatus(data.status);
+      setMessage(`✅ Status: ${data.status}`);
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+      setCurrentStatus(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const moveToInspector = async () => {
+    setLoading(true);
+    setMessage("");
+    
+    try {
+      const res = await fetch(`http://localhost:3000/water/${serialCode}/test`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user?.token}`,
+          Authorization: `Bearer ${user.token}`,
         },
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        throw new Error(data.error || "Approval failed");
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to move to inspector");
       }
 
-      setResult({
-        message: data.message,
-        blockIndex: data.block.index,
-        timestamp: data.block.timestamp,
+      const data = await res.json();
+      setMessage(`✅ ${data.message}`);
+      setCurrentStatus("INSPECTOR");
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const approveWaterPack = async () => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const res = await fetch(`http://localhost:3000/water/${serialCode}/approve`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
       });
 
-      setSerial("");
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to approve");
+      }
+
+      const data = await res.json();
+      setMessage(`✅ ${data.message}`);
+      setCurrentStatus("APPROVED");
+      setSerialCode("");
     } catch (err) {
-      setError(err.message);
+      setMessage(`❌ ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const rejectWaterPack = async (reason) => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const res = await fetch(`http://localhost:3000/water/${serialCode}/reject`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({ reason }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to reject");
+      }
+
+      const data = await res.json();
+      setMessage(`✅ ${data.message}`);
+      setCurrentStatus(`REJECTED_${reason}`);
+      setSerialCode("");
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-blue-50 to-white py-12 px-6">
-      <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <FiShield className="text-2xl text-green-700" />
-            </div>
-            <div>
-              <h2 className="text-3xl font-bold text-blue-900">
-                Inspector Dashboard
-              </h2>
-              <p className="text-gray-600">
-                Approve water batches and record on blockchain
-              </p>
-            </div>
+    <div className="p-6 max-w-2xl">
+      <div className="bg-white p-6 rounded-lg shadow-lg">
+        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+          <span className="text-3xl">🔍</span>
+          Inspector Approval Dashboard
+        </h2>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Water Pack Serial Code
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={serialCode}
+              onChange={(e) => setSerialCode(e.target.value)}
+              placeholder="WAT-xxxxx-xxxx-xxxx"
+              className="flex-1 border border-gray-300 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={checkStatus}
+              disabled={loading}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded disabled:opacity-60 transition-colors"
+            >
+              Check Status
+            </button>
           </div>
         </div>
 
-        {/* Main Card */}
-        <div className="bg-white rounded-xl shadow-lg p-8 border border-blue-100">
-          <h3 className="text-xl font-semibold text-blue-900 mb-6 flex items-center gap-2">
-            <FiCheckCircle />
-            Water Quality Approval
-          </h3>
+        {currentStatus && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
+            <p className="font-semibold text-blue-800">
+              Current Status: <span className="text-lg">{currentStatus}</span>
+            </p>
+          </div>
+        </div>
 
-          <div className="space-y-6">
-            {/* Serial Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Water Serial Number
-              </label>
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Enter water serial number"
-                  value={serial}
-                  onChange={(e) => setSerial(e.target.value)}
-                  className="w-full border-2 border-gray-200 focus:border-green-500 focus:outline-none rounded-lg pl-10 pr-4 py-3 transition-colors"
-                />
-              </div>
-            </div>
+        {message && (
+          <div className={`mb-6 p-4 rounded ${
+            message.includes("❌")
+              ? "bg-red-50 border border-red-200 text-red-700"
+              : "bg-green-50 border border-green-200 text-green-700"
+          }`}>
+            <p className="font-medium">{message}</p>
+          </div>
+        )}
 
-            {/* Approve Button */}
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded">
+            <h3 className="font-semibold text-yellow-800 mb-3">
+              📋 Step 1: Move to Inspector Queue
+            </h3>
+            <p className="text-sm text-yellow-700 mb-3">
+              Move water pack from production to quality inspection
+            </p>
             <button
-              onClick={approveWater}
-              disabled={loading}
-              className="w-full bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-lg transition-all shadow-md hover:shadow-lg font-medium flex items-center justify-center gap-2 text-lg disabled:opacity-60 disabled:cursor-not-allowed"
+              onClick={moveToInspector}
+              disabled={loading || !serialCode || currentStatus === "INSPECTOR" || currentStatus === "APPROVED"}
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                  <span>Recording on Blockchain...</span>
-                </>
-              ) : (
-                <>
-                  <FiCheckCircle className="text-xl" />
-                  <span>Approve Water Batch</span>
-                </>
-              )}
+              {loading ? "Processing..." : "🔄 Move to Inspector"}
             </button>
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <FiAlertCircle className="text-xl text-red-600 mt-0.5 shrink-0" />
-                <p className="text-red-800 font-medium">{error}</p>
-              </div>
+          <div className="bg-green-50 border border-green-200 p-4 rounded">
+            <h3 className="font-semibold text-green-800 mb-3">
+              ✅ Step 2: Approve Quality
+            </h3>
+            <p className="text-sm text-green-700 mb-3">
+              Approve water pack after quality inspection (requires INSPECTOR status)
+            </p>
+            <button
+              onClick={approveWaterPack}
+              disabled={loading || !serialCode || currentStatus !== "INSPECTOR"}
+              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              {loading ? "Processing..." : "✅ Approve Water Pack"}
+            </button>
+          </div>
+
+          <div className="bg-red-50 border border-red-200 p-4 rounded">
+            <h3 className="font-semibold text-red-800 mb-3">
+              ❌ Reject Water Pack
+            </h3>
+            <p className="text-sm text-red-700 mb-3">
+              Reject if quality standards are not met
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => rejectWaterPack("CONTAMINATED")}
+                disabled={loading || !serialCode || currentStatus !== "INSPECTOR"}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                ☣️ Contaminated
+              </button>
+              <button
+                onClick={() => rejectWaterPack("EXPIRED")}
+                disabled={loading || !serialCode || currentStatus !== "INSPECTOR"}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                ⏰ Expired
+              </button>
             </div>
-          )}
-
-          {/* Success Result */}
-          {result && (
-            <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-6">
-              <div className="flex items-start gap-3 mb-4">
-                <FiCheckCircle className="text-2xl text-green-700 mt-0.5 shrink-0" />
-                <p className="text-lg font-semibold text-green-800">
-                  {result.message}
-                </p>
-              </div>
-
-              <div className="space-y-3 mt-4">
-                <div className="flex items-center gap-3 bg-white p-3 rounded-lg">
-                  <FiHash className="text-green-700" />
-                  <div>
-                    <p className="text-xs text-gray-600">Blockchain Block</p>
-                    <p className="font-semibold text-gray-900">
-                      #{result.blockIndex}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 bg-white p-3 rounded-lg">
-                  <FiClock className="text-green-700" />
-                  <div>
-                    <p className="text-xs text-gray-600">Timestamp</p>
-                    <p className="font-semibold text-gray-900">
-                      {new Date(result.timestamp).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
-        {/* Info Card */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-            <FiShield />
-            Inspector Responsibilities
-          </h4>
-          <ul className="text-sm text-gray-700 space-y-2">
-            <li className="flex items-start gap-2">
-              <span className="text-blue-900 mt-0.5">•</span>
-              <span>
-                Verify water quality meets all safety standards before approval
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-900 mt-0.5">•</span>
-              <span>
-                Each approval is permanently recorded on the blockchain
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-900 mt-0.5">•</span>
-              <span>Only approved batches can be distributed to consumers</span>
-            </li>
-          </ul>
+        <div className="mt-6 p-4 bg-gray-50 rounded border border-gray-200">
+          <p className="text-sm font-medium text-gray-700 mb-2">
+            ℹ️ Workflow:
+          </p>
+          <div className="text-xs text-gray-600 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono bg-white px-2 py-1 rounded border">CREATED</span>
+              <span>→</span>
+              <span className="font-mono bg-yellow-100 px-2 py-1 rounded border border-yellow-300">INSPECTOR</span>
+              <span>→</span>
+              <span className="font-mono bg-green-100 px-2 py-1 rounded border border-green-300">APPROVED</span>
+            </div>
+            <p className="mt-2">⚠️ Water packs must be moved to INSPECTOR status before approval</p>
+          </div>
         </div>
       </div>
     </div>
