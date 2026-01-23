@@ -13,7 +13,7 @@ const LandingPage = () => {
       </p>
 
       <div className="flex justify-center gap-4">
-        <Link to="/verify" className="bg-blue-900 text-white px-6 py-3 rounded">
+        <Link to="/verify/water" className="bg-blue-900 text-white px-6 py-3 rounded">
           Verify Water
         </Link>
         <Link to="/report" className="border border-blue-900 px-6 py-3 rounded">

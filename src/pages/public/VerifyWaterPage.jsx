@@ -8,9 +8,7 @@ const VerifyWaterPage = () => {
     if (!batchId) return;
 
     try {
-      const res = await fetch(
-        `http://localhost:3000/water/verify/${batchId}`
-      );
+      const res = await fetch(`http://localhost:3000/water/verify/${batchId}`);
 
       if (!res.ok) {
         throw new Error("Water pack not found");
@@ -34,7 +32,6 @@ const VerifyWaterPage = () => {
     }
   };
 
-
   return (
     <div className="max-w-xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-4">Verify Water Quality</h2>
@@ -55,10 +52,18 @@ const VerifyWaterPage = () => {
 
       {result && (
         <div className="mt-6 bg-white shadow p-4 rounded">
-          <p><b>Status:</b> {result.status}</p>
-          <p><b>Inspector:</b> {result.inspector}</p>
-          <p><b>Hash:</b> {result.hash}</p>
-          <p><b>Date:</b> {result.date}</p>
+          <p>
+            <b>Status:</b> {result.status}
+          </p>
+          <p>
+            <b>Inspector:</b> {result.inspector}
+          </p>
+          <p>
+            <b>Hash:</b> {result.hash}
+          </p>
+          <p>
+            <b>Date:</b> {result.date}
+          </p>
         </div>
       )}
     </div>

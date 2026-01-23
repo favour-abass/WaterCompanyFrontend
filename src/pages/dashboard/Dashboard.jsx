@@ -22,13 +22,13 @@ const Dashboard = () => {
         {user.role} Dashboard
       </h1>
 
-      {/* {user.role === "PRODUCER" && <Producer />}
+      {user.role === "PRODUCER" && <Producer />}
       {user.role === "INSPECTOR" && <Inspector />}
-      {user.role === "DISTRIBUTOR" && <Distributor />} */}
+      {user.role === "DISTRIBUTOR" && <Distributor />}
       {user.role === "ADMIN" && <Producer />}
       {user.role === "ADMIN" && <Inspector />}
       {user.role === "ADMIN" && <Distributor />}
-      {/* {user.role === "ADMIN" && <Admin />} */}
+      {user.role === "ADMIN" && <Admin />}
     </div>
   );
 };
