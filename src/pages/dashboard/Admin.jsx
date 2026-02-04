@@ -16,7 +16,7 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-linear-to-b from-blue-50 to-white py-12 px-6">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
+        {/* Header  section*/}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-3 bg-purple-100 rounded-lg">

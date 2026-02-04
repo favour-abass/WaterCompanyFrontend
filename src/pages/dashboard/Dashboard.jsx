@@ -8,7 +8,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   console.log("Dashboard user:", user);
 
-  if (!user) {
+  if (!user || !user.token) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
@@ -34,3 +34,6 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
+// this is the dashboard
