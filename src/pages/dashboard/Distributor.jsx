@@ -1,138 +1,197 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import {
-  FiTruck,
-  FiShoppingCart,
-  FiPackage,
-  FiCheckCircle,
-  FiAlertCircle,
-} from "react-icons/fi";
-import { FaBarcode } from "react-icons/fa";
 
 const Distributor = () => {
   const { user } = useAuth();
-  const [distributeSerial, setDistributeSerial] = useState("");
-  const [sellSerial, setSellSerial] = useState("");
-  const [status, setStatus] = useState("");
-  const [blockchainInfo, setBlockchainInfo] = useState(null);
+  const [distributeQueue, setDistributeQueue] = useState([]);
+  const [sellQueue, setSellQueue] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const updateStatus = async (action) => {
-    if (!serial) {
-      setStatus("⚠️ Please enter a serial code!");
-      return;
+  const fetchQueues = async (showRefreshIndicator = false) => {
+    if (showRefreshIndicator) setRefreshing(true);
+
+    try {
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${user.token}`,
+      };
+
+      const approvedRes = await fetch(
+        "http://localhost:3000/water/approvedBatch",
+        { headers },
+      );
+
+      const distributedRes = await fetch(
+        "http://localhost:3000/water/distributedBatch",
+        { headers },
+      );
+
+      if (!approvedRes.ok || !distributedRes.ok) {
+        throw new Error("Failed to fetch queues");
+      }
+
+      setDistributeQueue(await approvedRes.json());
+      setSellQueue(await distributedRes.json());
+
+      if (showRefreshIndicator) {
+        setMessage("✅ Queues refreshed");
+        setTimeout(() => setMessage(""), 3000);
+      }
+    } catch (err) {
+      setMessage("❌ Failed to load distributor queues");
+      console.error(err);
+    } finally {
+      if (showRefreshIndicator) setRefreshing(false);
     }
+  };
 
+  useEffect(() => {
+    if (user?.token) {
+      fetchQueues();
+    }
+  }, [user]);
+
+  const updateBatch = async (batchNo, action) => {
     setLoading(true);
-    setStatus("");
-    setBlockchainInfo(null);
+    setMessage("");
 
     try {
       const res = await fetch(
-        `http://localhost:3000/water/${serial}/${action}`,
+        `http://localhost:3000/water/batch/${batchNo}/${action}`,
         {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${user.token}`,
           },
-        }
+        },
       );
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to update status");
+        const err = await res.json();
+        throw new Error(err.error || "Action failed");
       }
 
       const data = await res.json();
-      setStatus(data.message);
-      setBlockchainInfo(data.blockchain);
-      setSerial("");
+      setMessage(`✅ ${data.message}`);
+
+      // Refresh queues after successful action
+      await fetchQueues();
     } catch (err) {
-      setStatus(`❌ ${err.message}`);
+      setMessage(`❌ ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const isSuccess = status && !status.includes("!");
-
   return (
     <div className="p-6">
-      <div className="max-w-2xl bg-white p-6 rounded shadow">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <span className="text-3xl">🚚</span>
-          Distributor Dashboard
-        </h2>
+      <h2 className="text-2xl font-bold mb-6">🚚 Distributor Dashboard</h2>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Water Pack Serial Code
-          </label>
-          <input
-            type="text"
-            placeholder="Enter serial code (e.g., WAT-xxxxx)"
-            value={serial}
-            onChange={(e) => setSerial(e.target.value)}
-            className="w-full border border-gray-300 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-yellow-500"
-          />
+      {message && (
+        <div
+          className={`mb-4 p-3 rounded border ${
+            message.startsWith("✅")
+              ? "bg-green-100 border-green-300 text-green-800"
+              : "bg-red-100 border-red-300 text-red-800"
+          }`}
+        >
+          {message}
         </div>
+      )}
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => updateStatus("distribute")}
-            disabled={loading}
-            className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
-          >
-            {loading ? "Processing..." : "📦 Mark as Distributed"}
-          </button>
-
-          <button
-            onClick={() => updateStatus("sell")}
-            disabled={loading}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
-          >
-            {loading ? "Processing..." : "💰 Mark as Sold"}
-          </button>
-        </div>
-
-        {status && (
-          <div className={`mt-4 p-3 rounded ${
-            status.includes("❌") 
-              ? "bg-red-50 border border-red-200 text-red-700" 
-              : "bg-green-50 border border-green-200 text-green-700"
-          }`}>
-            <p className="font-medium">{status}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Distribute Queue */}
+        <div className="bg-white rounded shadow flex flex-col h-120">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h3 className="font-semibold text-yellow-700">
+              📦 Distribute Queue
+            </h3>
+            <button
+              onClick={() => fetchQueues(true)}
+              disabled={refreshing}
+              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium disabled:opacity-50"
+            >
+              {refreshing ? "🔄 Refreshing..." : "🔄 Refresh"}
+            </button>
           </div>
-        )}
 
-        {blockchainInfo && (
-          <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded">
-            <p className="font-semibold text-blue-800 mb-2">
-              🔗 Blockchain Confirmation
-            </p>
-            
-            <div className="space-y-2 text-sm">
-              <div className="bg-white p-2 rounded">
-                <p className="text-gray-600">Transaction Hash</p>
-                <p className="font-mono text-xs text-gray-800 break-all">
-                  {blockchainInfo.transactionHash}
-                </p>
-              </div>
-
-              <div className="bg-white p-2 rounded">
-                <p className="text-gray-600">Block Number</p>
-                <p className="font-semibold text-gray-800">
-                  #{blockchainInfo.blockNumber}
-                </p>
-              </div>
-
-              <p className="text-xs text-center text-gray-500 mt-2 pt-2 border-t border-blue-200">
-                🔐 Permanently recorded on Ethereum blockchain
+          <div className="flex-1 overflow-y-auto p-4">
+            {distributeQueue.length === 0 && (
+              <p className="text-sm text-gray-500 text-center mt-8">
+                No approved batches ready for distribution
               </p>
-            </div>
+            )}
+
+            {distributeQueue.map((batch) => (
+              <div
+                key={batch.batch_no}
+                className="border p-3 rounded mb-3 bg-yellow-50"
+              >
+                <p className="font-mono text-sm font-semibold">
+                  {batch.batch_no}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Units: {batch.approved_units}
+                </p>
+
+                <button
+                  disabled={loading}
+                  onClick={() => updateBatch(batch.batch_no, "distribute")}
+                  className="mt-2 w-full bg-yellow-600 text-white py-2 rounded font-semibold hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Processing..." : "📦 Distribute Batch"}
+                </button>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+
+        {/* Sell Queue */}
+        <div className="bg-white rounded shadow flex flex-col h-120">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h3 className="font-semibold text-green-700">💰 Sell Queue</h3>
+            <button
+              onClick={() => fetchQueues(true)}
+              disabled={refreshing}
+              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium disabled:opacity-50"
+            >
+              {refreshing ? "🔄 Refreshing..." : "🔄 Refresh"}
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4">
+            {sellQueue.length === 0 && (
+              <p className="text-sm text-gray-500 text-center mt-8">
+                No distributed batches ready for sale
+              </p>
+            )}
+
+            {sellQueue.map((batch) => (
+              <div
+                key={batch.batch_no}
+                className="border p-3 rounded mb-3 bg-green-50"
+              >
+                <p className="font-mono text-sm font-semibold">
+                  {batch.batch_no}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Units: {batch.distributed_units}
+                </p>
+
+                <button
+                  disabled={loading}
+                  onClick={() => updateBatch(batch.batch_no, "sell")}
+                  className="mt-2 w-full bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Processing..." : "💰 Sell Batch"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

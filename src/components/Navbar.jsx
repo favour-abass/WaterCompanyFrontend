@@ -11,7 +11,7 @@ const Navbar = () => {
       <div className="space-x-4">
         {!isAuthenticated ? (
           <>
-            <Link to="/verify">Verify</Link>
+            <Link to="/verify/water">Verify</Link>
             <Link to="/report">Report</Link>
             <Link to="/login" className="bg-white text-blue-900 px-3 py-1 rounded">
               Login

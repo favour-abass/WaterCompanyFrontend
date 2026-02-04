@@ -1,41 +1,55 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 
-const InspectorDashboard = () => {
+const Inspector = () => {
   const { user } = useAuth();
-  const [serialCode, setSerialCode] = useState("");
-  const [message, setMessage] = useState("");
-  const [currentStatus, setCurrentStatus] = useState(null);
+  const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [actionLoading, setActionLoading] = useState({});
 
-  const checkStatus = async () => {
-    if (!serialCode.trim()) {
-      setMessage("❌ Please enter a serial code");
-      return;
-    }
+  if (!user || !user.token) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+      </div>
+    );
+  }
 
+  const fetchQueue = async () => {
     setLoading(true);
+    setMessage("");
     try {
-      const res = await fetch(`http://localhost:3000/water/verify/${serialCode}`);
-      if (!res.ok) throw new Error("Water pack not found");
-      
+      const res = await fetch("http://localhost:3000/water/createdBatch", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData?.error || `Failed with status ${res.status}`);
+      }
+
       const data = await res.json();
-      setCurrentStatus(data.status);
-      setMessage(`✅ Status: ${data.status}`);
+      setBatches(data); // backend should already return unique batches
     } catch (err) {
       setMessage(`❌ ${err.message}`);
-      setCurrentStatus(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const moveToInspector = async () => {
-    setLoading(true);
-    setMessage("");
-    
+  useEffect(() => {
+    if (user?.token) fetchQueue();
+  }, [user?.token]);
+
+  const approveBatch = async (batch_no) => {
+    setActionLoading((prev) => ({ ...prev, [batch_no]: true }));
     try {
-      const res = await fetch(`http://localhost:3000/water/${serialCode}/test`, {
+      const res = await fetch(`http://localhost:3000/water/batch/${batch_no}/approve`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -45,54 +59,25 @@ const InspectorDashboard = () => {
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || "Failed to move to inspector");
+        throw new Error(errData?.error || "Batch approval failed");
       }
 
-      const data = await res.json();
-      setMessage(`✅ ${data.message}`);
-      setCurrentStatus("INSPECTOR");
+      alert(`Batch ${batch_no} approved!`);
+      fetchQueue();
     } catch (err) {
-      setMessage(`❌ ${err.message}`);
+      alert(err.message);
     } finally {
-      setLoading(false);
+      setActionLoading((prev) => ({ ...prev, [batch_no]: false }));
     }
   };
 
-  const approveWaterPack = async () => {
-    setLoading(true);
-    setMessage("");
+  const rejectBatch = async (batch_no) => {
+    const reason = prompt("Reason for rejection:");
+    if (!reason) return;
 
+    setActionLoading((prev) => ({ ...prev, [batch_no]: true }));
     try {
-      const res = await fetch(`http://localhost:3000/water/${serialCode}/approve`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
-        },
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to approve");
-      }
-
-      const data = await res.json();
-      setMessage(`✅ ${data.message}`);
-      setCurrentStatus("APPROVED");
-      setSerialCode("");
-    } catch (err) {
-      setMessage(`❌ ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const rejectWaterPack = async (reason) => {
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const res = await fetch(`http://localhost:3000/water/${serialCode}/reject`, {
+      const res = await fetch(`http://localhost:3000/water/batch/${batch_no}/reject`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -103,145 +88,87 @@ const InspectorDashboard = () => {
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || "Failed to reject");
+        throw new Error(errData?.error || "Batch rejection failed");
       }
 
-      const data = await res.json();
-      setMessage(`✅ ${data.message}`);
-      setCurrentStatus(`REJECTED_${reason}`);
-      setSerialCode("");
+      alert(`Batch ${batch_no} rejected!`);
+      fetchQueue();
     } catch (err) {
-      setMessage(`❌ ${err.message}`);
+      alert(err.message);
     } finally {
-      setLoading(false);
+      setActionLoading((prev) => ({ ...prev, [batch_no]: false }));
     }
   };
 
   return (
-    <div className="p-6 max-w-2xl">
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <span className="text-3xl">🔍</span>
-          Inspector Approval Dashboard
-        </h2>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">🧪 Inspection Queue</h1>
+        <button
+          onClick={fetchQueue}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60"
+          disabled={loading}
+        >
+          Refresh Queue
+        </button>
+      </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Water Pack Serial Code
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={serialCode}
-              onChange={(e) => setSerialCode(e.target.value)}
-              placeholder="WAT-xxxxx-xxxx-xxxx"
-              className="flex-1 border border-gray-300 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={checkStatus}
-              disabled={loading}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded disabled:opacity-60 transition-colors"
-            >
-              Check Status
-            </button>
-          </div>
-        </div>
+      {loading && <p>Loading...</p>}
+      {message && <p className="text-red-500 mb-4">{message}</p>}
 
-        {currentStatus && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-            <p className="font-semibold text-blue-800">
-              Current Status: <span className="text-lg">{currentStatus}</span>
-            </p>
-          </div>
-        </div>
+      <div className="border rounded-lg overflow-hidden">
+        <div className="max-h-105 overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100 sticky top-0 z-10">
+              <tr>
+                <th className="p-3 text-left">Batch No</th>
+                <th className="p-3 text-left">Status</th>
+                <th className="p-3 text-left">Actions</th>
+              </tr>
+            </thead>
 
-        {message && (
-          <div className={`mb-6 p-4 rounded ${
-            message.includes("❌")
-              ? "bg-red-50 border border-red-200 text-red-700"
-              : "bg-green-50 border border-green-200 text-green-700"
-          }`}>
-            <p className="font-medium">{message}</p>
-          </div>
-        )}
+            <tbody>
+              {batches.length === 0 && !loading && (
+                <tr>
+                  <td colSpan="3" className="p-4 text-center text-gray-500">
+                    No batches awaiting inspection
+                  </td>
+                </tr>
+              )}
 
-        <div className="space-y-4">
-          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded">
-            <h3 className="font-semibold text-yellow-800 mb-3">
-              📋 Step 1: Move to Inspector Queue
-            </h3>
-            <p className="text-sm text-yellow-700 mb-3">
-              Move water pack from production to quality inspection
-            </p>
-            <button
-              onClick={moveToInspector}
-              disabled={loading || !serialCode || currentStatus === "INSPECTOR" || currentStatus === "APPROVED"}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
-            >
-              {loading ? "Processing..." : "🔄 Move to Inspector"}
-            </button>
-          </div>
+              {batches.map((batch) => (
+                <tr key={batch.batch_no} className="border-t hover:bg-gray-50">
+                  <td className="p-3 font-mono">{batch.batch_no}</td>
+                  <td className="p-3">
+                    <span className="px-2 py-1 rounded bg-yellow-100 text-yellow-700 font-semibold">
+                      {batch.status}
+                    </span>
+                  </td>
+                  <td className="p-3 flex gap-2">
+                    <button
+                      onClick={() => approveBatch(batch.batch_no)}
+                      disabled={actionLoading[batch.batch_no]}
+                      className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+                    >
+                      Approve Batch
+                    </button>
 
-          <div className="bg-green-50 border border-green-200 p-4 rounded">
-            <h3 className="font-semibold text-green-800 mb-3">
-              ✅ Step 2: Approve Quality
-            </h3>
-            <p className="text-sm text-green-700 mb-3">
-              Approve water pack after quality inspection (requires INSPECTOR status)
-            </p>
-            <button
-              onClick={approveWaterPack}
-              disabled={loading || !serialCode || currentStatus !== "INSPECTOR"}
-              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
-            >
-              {loading ? "Processing..." : "✅ Approve Water Pack"}
-            </button>
-          </div>
-
-          <div className="bg-red-50 border border-red-200 p-4 rounded">
-            <h3 className="font-semibold text-red-800 mb-3">
-              ❌ Reject Water Pack
-            </h3>
-            <p className="text-sm text-red-700 mb-3">
-              Reject if quality standards are not met
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => rejectWaterPack("CONTAMINATED")}
-                disabled={loading || !serialCode || currentStatus !== "INSPECTOR"}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
-              >
-                ☣️ Contaminated
-              </button>
-              <button
-                onClick={() => rejectWaterPack("EXPIRED")}
-                disabled={loading || !serialCode || currentStatus !== "INSPECTOR"}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
-              >
-                ⏰ Expired
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 p-4 bg-gray-50 rounded border border-gray-200">
-          <p className="text-sm font-medium text-gray-700 mb-2">
-            ℹ️ Workflow:
-          </p>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-mono bg-white px-2 py-1 rounded border">CREATED</span>
-              <span>→</span>
-              <span className="font-mono bg-yellow-100 px-2 py-1 rounded border border-yellow-300">INSPECTOR</span>
-              <span>→</span>
-              <span className="font-mono bg-green-100 px-2 py-1 rounded border border-green-300">APPROVED</span>
-            </div>
-            <p className="mt-2">⚠️ Water packs must be moved to INSPECTOR status before approval</p>
-          </div>
+                    <button
+                      onClick={() => rejectBatch(batch.batch_no)}
+                      disabled={actionLoading[batch.batch_no]}
+                      className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                    >
+                      Reject Batch
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
 };
 
-export default InspectorDashboard;
+export default Inspector;

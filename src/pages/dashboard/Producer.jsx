@@ -12,9 +12,11 @@ const Producer = () => {
       setMessage("Quantity must be at least 1");
       return;
     }
+
     setLoading(true);
     setMessage("");
     setBatchInfo(null);
+
     try {
       const res = await fetch("http://localhost:3000/water", {
         method: "POST",
@@ -105,9 +107,11 @@ const Producer = () => {
                   {batchInfo.batchNo}
                 </p>
               </div>
+
               <div>
                 <span className="font-medium">Type:</span> {batchInfo.type}
               </div>
+
               <div className="bg-white p-2 rounded border border-blue-100">
                 <p className="text-gray-600 font-medium">Transaction Hash</p>
                 <p className="font-mono text-xs text-gray-800 break-all mt-1">
@@ -127,4 +131,5 @@ const Producer = () => {
     </div>
   );
 };
+
 export default Producer;
