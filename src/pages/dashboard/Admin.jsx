@@ -260,21 +260,15 @@ const Admin = () => {
           <div className="grid md:grid-cols-3 gap-6">
             <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
               <p className="text-blue-200 text-sm mb-1">Total Users</p>
-              <p className="text-3xl font-bold text-blue-300">
-                {stats.totalUsers}
-              </p>
+              <p className="text-3xl font-bold text-blue-300">{stats.totalUsers}</p>
             </div>
             <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
               <p className="text-blue-200 text-sm mb-1">Active Batches</p>
-              <p className="text-3xl font-bold text-blue-300">
-                {stats.activeBatches}
-              </p>
+              <p className="text-3xl font-bold text-blue-300">{stats.activeBatches}</p>
             </div>
             <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
               <p className="text-blue-200 text-sm mb-1">Pending Reports</p>
-              <p className="text-3xl font-bold text-blue-300">
-                {stats.pendingReports}
-              </p>
+              <p className="text-3xl font-bold text-blue-300">{stats.pendingReports}</p>
             </div>
           </div>
         </div>
