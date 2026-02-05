@@ -6,6 +6,7 @@ const Inspector = () => {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  
   const [actionLoading, setActionLoading] = useState({});
 
   if (!user || !user.token) {
