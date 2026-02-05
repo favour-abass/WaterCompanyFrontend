@@ -35,4 +35,5 @@ const Dashboard = () => {
 
 export default Dashboard;
 
-//dashboard code
+
+// this is the dashboard
